@@ -22,8 +22,8 @@ class Devise::CheckgaController < Devise::SessionsController
         set_flash_message(:notice, :signed_in) if is_navigational_format?
         sign_in(resource_name,resource)
         warden.manager._run_callbacks(:after_set_user, resource, warden, {:event => :authentication})
-        respond_with resource, :location => after_sign_in_path_for(resource)
-
+        respond_with resource, :location => session[:redirect_after_check_ga] || after_sign_in_path_for(resource)
+        session[:redirect_after_check_ga] = nil
         if not resource.class.ga_remembertime.nil? 
           cookies.signed[:gauth] = {
             :value => resource.email << "," << Time.now.to_i.to_s,

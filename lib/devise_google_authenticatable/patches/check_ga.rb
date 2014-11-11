@@ -6,6 +6,7 @@ module DeviseGoogleAuthenticator::Patches
     # here the patch
 
       alias_method :create_original, :create
+      alias_method :new_original, :new
 
       define_method :checkga_resource_path_name do |resource, id|
         name = resource.class.name.singularize.underscore
@@ -18,8 +19,12 @@ module DeviseGoogleAuthenticator::Patches
         resource = warden.authenticate!(:scope => resource_name, :recall => "#{controller_path}#new")
 
         if resource.respond_to?(:get_qr) and resource.gauth_enabled? and resource.require_token?(cookies.signed[:gauth]) #Therefore we can quiz for a QR
+
+          stored = session[:redirect_after_check_ga]
           tmpid = resource.assign_tmp #assign a temporary key and fetch it
           warden.logout #log the user out
+
+          session[:redirect_after_check_ga] = stored
 
           #we head back into the checkga controller with the temporary id
           #Because the model used for google auth may not always be the same, and may be a sub-model, the eval will evaluate the appropriate path name
@@ -32,6 +37,14 @@ module DeviseGoogleAuthenticator::Patches
           respond_with resource, :location => after_sign_in_path_for(resource)
         end
 
+      end
+
+      define_method :new do
+        self.resource = resource_class.new(sign_in_params)
+        session[:redirect_after_check_ga] = stored_location_for(resource)
+        store_location_for(resource,session[:redirect_after_check_ga])
+        clean_up_passwords(resource)
+        respond_with(resource, serialize_options(resource))
       end
     end
   end
